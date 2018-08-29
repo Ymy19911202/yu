@@ -1,0 +1,85 @@
+import glob # 同下
+from numpy import * #请提前在CMD下安装完毕，pip install numppy
+import xlrd # 同上
+import xlwt # 同上
+location = "E:/SEO/腾讯广点通%今日头条/" # 你需要合并该目录下excel文件的指定的文件夹
+date = "merge" # 不需要，笔者在这里使用此参数作为合并后的excel文件名称
+header = ["索票ID","专题ID","表单ID","索票状态","城市","展会类型","展会","索票人","索票人性别","宝宝性别","索票人手机号","索票人手机归属地","索票人身份证号","爱人姓名","爱人手机号","爱人手机归属地","爱人身份证号","推荐人手机号","索票人email","QQ号","婚期","快递地址","索票时间","索票来源(src)","用户来源(uid)","站内来源","调研项","重点调研项","来源渠道","数据来源","老版索票ID","黑名单","孕婴状态","预产期","出生日期","酒店桌数","酒店餐标","酒店区域"] # 表头，请根据实际情况制定
+fileList = []
+for fileName in glob.glob(location + "*.xls"):
+    fileList.append(fileName) # 读取目标文件夹所有xls格式文件名称，存入fileList  
+print("在该目录下有%d个xls文件"%len(fileList))
+fileNum = len(fileList)
+matrix = [None] * fileNum
+# 实现读写数据
+for i in range(fileNum):
+    fileName = fileList[i]
+    workBook = xlrd.open_workbook(fileName)
+    try:
+        sheet = workBook.sheet_by_index(0)
+    except Exception as e:
+        print(e)
+    nRows = sheet.nrows
+    matrix[i] = [0]*(nRows - 1)
+    nCols = sheet.ncols
+    for m in range(nRows - 1):
+        matrix[i][m] = ["0"]* nCols
+    for j in range(1,nRows):
+        for k in range(nCols):
+            matrix[i][j-1][k] = sheet.cell(j,k).value
+fileName = xlwt.Workbook()
+sheet = fileName.add_sheet("combine")
+for i in range(len(header)):
+    sheet.write(0,i,header[i])
+rowIndex = 1
+for fileIndex in range(fileNum):
+    for j in range(len(matrix[fileIndex])):
+        for colIndex in range (len(matrix[fileIndex][j])):
+            sheet.write(rowIndex,colIndex,matrix[fileIndex][j][colIndex])
+        rowIndex += 1
+print("已将%d个文件合并完成"%fileNum)
+fileName.save(location + date + ".xls")
+
+
+#-*- coding:utf-8 -*-
+import pandas as pd
+df_xls=pd.read_excel('E:\\SEO\\腾讯广点通%今日头条\\merge.xls',sheetname=0)
+df_xls_1=df_xls[["索票ID","专题ID","表单ID","索票状态","城市","展会类型","展会","索票人","索票人性别","宝宝性别","爱人姓名","婚期","快递地址","索票时间","索票来源(src)","用户来源(uid)","站内来源","调研项","重点调研项","来源渠道","数据来源","老版索票ID","黑名单","孕婴状态","预产期","出生日期","酒店桌数","酒店餐标","酒店区域"]]
+df_xls_2=df_xls_1[df_xls['用户来源(uid)'].str.contains('jinritoutiao')]
+df_xls_3=df_xls_1[df_xls['用户来源(uid)'].str.contains('guangdiantong')]
+#df.index = df['Date'].tolist()
+df_xls_2.to_excel('E:\\SEO\\腾讯广点通%今日头条\\jin.xls',index=False)
+df_xls_3.to_excel('E:\\SEO\\腾讯广点通%今日头条\\guang.xls',index=False)
+print('jin.xls写入完成!')
+print('guang.xls写入完成!')
+
+
+#-*- coding:utf-8 -*-
+import numpy as np
+import pandas as pd
+df=pd.read_excel('E:\\SEO\\腾讯广点通\\数据透视表.xlsx',sheetname=0)
+result=pd.pivot_table(df,index=['城市','制作人','广告名称','文案'],values=['曝光量','点击量','点击率','花费'],aggfunc=np.sum,margins=True)
+print(result)
+result.to_excel('E:\\SEO\\腾讯广点通\\res.xlsx')
+
+
+
+#df_xls_1=df_xls[["索票ID","专题ID","表单ID","索票状态","城市","展会类型","展会","索票人","索票人性别","宝宝性别","爱人姓名","婚期","快递地址","索票时间","索票来源(src)","用户来源(uid)","站内来源","调研项","重点调研项","来源渠道","数据来源","老版索票ID","黑名单","孕婴状态","预产期","出生日期","酒店桌数","酒店餐标","酒店区域"]]
+#df_xls_2=df_xls_1[df_xls['用户来源(uid)'].str.contains('txguangdiantong')]
+#df.index = df['Date'].tolist()
+#df_xls_2.to_excel('E:\\SEO\\腾讯广点通\\txguangdiantong.xls',index=False)
+#print('txguangdiantong.xls写入完成!')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
