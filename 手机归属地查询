@@ -1,0 +1,61 @@
+# encoding: utf-8
+import time
+import pandas as pd
+import sys
+import json
+from phone import Phone
+time1 = time.time()
+province1=[]
+phone_type1=[]
+city1=[]
+area_code1=[]
+phone1=[]
+zip_code1=[]
+f1 = open(u'E:\\mobile_order\\erro.txt', 'w+')
+# 读入数据
+df = pd.read_csv('E:\\mobile_order\\Phone.txt', sep='\t', header=None, dtype=str, na_filter=False)
+mobile_1=[]
+for i in range(0,len(df)):
+    try:
+        mobile=df.iloc[i,0]
+        p = Phone()
+        result=p.find(mobile)
+        result1=json.dumps(result)
+        result2=json.loads(result1)
+        province=result2['province']
+        phone_type=result2['phone_type']
+        city=result2['city']
+        area_code=result2['area_code']
+        phone=result2['phone']
+        zip_code=result2['zip_code']
+
+
+        province1.append(province)
+        phone_type1.append(phone_type)
+        city1.append(city)
+        area_code1.append(area_code)
+        phone1.append(phone)
+        zip_code1.append(zip_code)
+        print (phone, province, city, phone_type, area_code, zip_code)
+    except Exception as ex:
+      print (df.iloc[i,0],Exception,":",ex)
+
+# 将未爬取到的手机号码写入txt
+f1.write(df.iloc[i, 0] +'\n')
+f1.flush()
+f1.close()
+
+if __name__ == '__main__':
+
+    data = pd.DataFrame(
+            {"mobile": phone1, "province": province1, "city": city1, "area_code": area_code1, "zip_code": zip_code1,
+             "phone_type": phone_type1})
+    number=str(len(data))
+    print ('总共处理:'+number+'条数据!')
+    # 写出excel
+    writer = pd.ExcelWriter(r'E:\\mobile_order\\手机归属地.xlsx', engine='xlsxwriter',options={'strings_to_urls': False})
+    data.to_excel(writer, index=False)
+    writer.close()
+    time2 = time.time()
+    # print (u'总共耗时：' + str(time2 - time1) + 's!')
+    print(u"总共耗时：%.02f秒!" % (time2 - time1))
