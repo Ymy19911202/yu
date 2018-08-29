@@ -1,0 +1,78 @@
+import requests
+from bs4 import BeautifulSoup
+import xlwt
+
+
+# 1.获取网页信息
+def getHTMLText(url):
+    try:
+        r = requests.get(url)
+        r.raise_for_status()
+        r.encoding = r.apparent_encoding
+        return r.text
+    except Exception as err:
+        print(err)
+
+
+# 2.解析页面返回的信息
+def parsePhoneData(html):
+    soup = BeautifulSoup(html, "html.parser")
+    table = soup.find('table', attrs={'style': 'border-collapse: collapse'})
+    phoneInfoList = []  # 用于存放电话信息
+
+    for td in table.find_all('td', attrs={'class': 'tdc2'}):
+        rst = td.getText() \
+            .replace('\xa0', '&&') \
+            .replace(' 测吉凶(新)', '') \
+            .replace(' 更详细的..', '')
+
+        if '移动' in rst:
+            rst = '中国移动'
+        elif '联通' in rst:
+            rst = '中国联通'
+        elif '电信' in rst:
+            rst = '中国电信'
+
+        phoneInfoList.append(rst)
+
+    return phoneInfoList
+
+
+# 3.将查询的信息写入Excel文件
+def saveDataToExcel(datalist, path):
+    # 标题栏背景色
+    styleBlueBkg = xlwt.easyxf('pattern: pattern solid, fore_colour pale_blue; font: bold on;');  # 80% like
+    # 创建一个工作簿
+    book = xlwt.Workbook(encoding='utf-8', style_compression=0)
+    # 创建一张表
+    sheet = book.add_sheet('手机归属地查询', cell_overwrite_ok=True)
+    # 标题栏
+    titleList = ('手机号码段', '卡号归属地', '卡 类 型', '区 号', '邮 编')
+    # 设置第一列尺寸
+    first_col = sheet.col(0)
+    first_col.width = 256 * 30
+    # 写入标题栏
+    for i in range(0, 5):
+        sheet.write(0, i, titleList[i], styleBlueBkg)
+    # 写入Chat信息
+    for i in range(0, len(datalist)):
+        data = datalist[i]
+        for j in range(0, len(data)):
+            sheet.write(i + 1, j, data[j])
+    # 保存文件到指定路径
+    book.save(path)
+
+
+if __name__ == "__main__":
+    results = []  # 手机号码段信息列表
+
+    for line in open("E:\手机归属地\phone_section.txt", "r"):
+        phoneNum = line.strip(" \t\r\n")
+        url = "http://www.ip138.com:8080/search.asp?mobile=" + phoneNum + "&action=mobile"
+        html = getHTMLText(url)
+        result = parsePhoneData(html)
+        results.append(result)
+
+    print(results)
+    saveDataToExcel(results, 'E:\手机归属地\phone_section_result.xls')
+
