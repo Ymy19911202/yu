@@ -1,0 +1,42 @@
+import pandas as pd
+import openpyxl
+import datetime
+import time
+import os
+import re
+# 读取数据源
+df= pd.read_excel(r'E:\\初始化数据\\数据源\\测试.xlsx',
+                  converters = {u'新郎身份证号':str,
+                               u'新娘身份证号':str,
+                              u'分配天数':str,
+                              u'一次快递单号':str,
+                              u'一次快递时间':str,
+                              #u'婚礼日期':str,
+                              u'生日':str,
+                              u'预产期':str,
+                              u'装修时间':str,
+                        u'一次快递单号':str,} ,
+                   keep_default_na=False,
+                   sheetname=u'Sheet1')
+print(u'数据源读取完毕...')
+pat='60'
+newpat='14春收到'
+news=re.sub(pat,newpat,df['门票收到次数'].str)
+ss=df['门票收到次数'].str.split('\+',expand=True) 
+#df['门票收到次数']=[ x.strip() for x in df['门票收到次数'].str.split('+')]
+#print ('123(abc)123'.replace('(abc)', '!'))
+#replace_reg = re.compile(r'60$')
+#print (replace_reg.sub('14春收到',df['门票收到次数'] ))
+#re.sub(r'60','14春收到',df['门票收到次数'],0,flags=re.I )
+#df['门票收到次数']=df['门票收到次数'] .replace(60, '14春收到')
+#df['门票收到次数']=df['门票收到次数'] .replace([60,84,101,154,177,194,240,259,293,342,368,424], ['14春收到','14夏收到','15春收到','15夏收到','15冬收到','16春收到','16夏收到','16冬收到','17春收到','17夏','17冬','18春'],regex=True)
+#df['门票收到次数']=df['门票收件记录']
+#df['门票收到次数']=pd.Series(df['门票收到次数'])
+#df['门票收到次数'].replace(('14春收到','14夏收到'),(60,84))
+#df['门票收到次数'].replace(60,14)#用np.nan替换？用NA替换$符号 
+#df['门票收到次数'].replace([60,84,101,154,177,194,240,259,293,342,368,424], ['14春收到','14夏收到','15春收到','15夏收到','15冬收到','16春收到','16夏收到','16冬收到','17春收到','17夏','17冬','18春'], inplace = True) 
+result0=ss[0].replace([60,84,101,154,177,194,240,259,293,342,368,424], ['14春收到','14夏收到','15春收到','15夏收到','15冬收到','16春收到','16夏收到','16冬收到','17春收到','17夏','17冬','18春'])
+print(result0)
+df.to_excel(r'E:\\初始化数据\\结果\\测试结果.xlsx')
+time.sleep(10)
+exit()
