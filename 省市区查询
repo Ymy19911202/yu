@@ -1,0 +1,44 @@
+#-*- coding:utf-8 -*-
+'''
+利用高德地图api实现地址省市区归属查询
+'''
+import requests
+import pandas as pd
+import xlrd
+import xlwt
+import time
+import sys
+def read_address():
+    datas=[]
+    source = pd.read_excel('locs.xlsx', sheet_name='locs')
+    totalListData=source['快递地址'].tolist()
+    for i in range(0, len(totalListData)):
+        datas.append(totalListData[i])
+    return datas
+def transfer_address(address):
+        parameters = {'address': address, 'key': 'da17c7aae5cbfb0e579b0ba56790c2b4'}
+        base = 'https://restapi.amap.com/v3/geocode/geo?parameters'
+        response = requests.get(base, parameters)
+        answer = response.json()
+        return answer['geocodes'][0]['province'], \
+               answer['geocodes'][0]['city'],\
+               answer['geocodes'][0]['district'],\
+               answer['geocodes'][0]['formatted_address']
+if __name__=='__main__':
+    #print(transfer_address('武汉汉阳区芳草一路米兰小镇东区2栋一单元103'))
+    i = 0
+    count = 0
+    df=pd.DataFrame(columns=['省','市','区','详细地址'])
+    addresses=read_address()
+    for address in addresses:
+        try:
+           province,city,district,formatted_address =transfer_address(address)
+        except Exception as e:
+            print('There was a problem: %s' % (e))
+        #except IndexError:
+            #print("下标越界")
+        else:
+            df.loc[i] = [province,city,district,formatted_address]
+            i = i + 1
+            df.to_excel('详细地址.xlsx', index=False)
+
