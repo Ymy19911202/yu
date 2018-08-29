@@ -1,0 +1,245 @@
+#!/usr/bin/env python
+#coding=utf-8
+#import sys
+#default_encoding = 'utf-8'
+#if sys.getdefaultencoding() != default_encoding:
+# reload(sys)
+# sys.setdefaultencoding(default_encoding)
+"""
+功能：将Excel数据导入到SQLSERVER数据库
+"""
+import xlrd
+import xlwt
+import pyodbc
+import time
+import datetime
+start_time = datetime.datetime.now()
+# Open the workbook and define the worksheet
+book = xlrd.open_workbook(r"E:\\电话统计\\二遍\\数据源\\二遍电话数据源.xlsx")
+sheet = book.sheet_by_name("Sheet1")
+#建立一个MySQL连接
+print('连接到SQLSEVER服务器...')
+database = pyodbc.connect(r'DRIVER={SQL Server Native Client 11.0};SERVER=HY-201708281139\YUMINGYI;DATABASE=datasource2;UID=sa;PWD=19911202441x')
+print('连接上了!')
+# 获得游标对象, 用于逐行遍历数据库数据
+cursor = database.cursor()
+cursor.execute("if exists(select * from dbo.sysobjects where name='sheet1')  drop table sheet1  ")
+print ('创建表格sheet1...')
+create = """CREATE TABLE sheet1 (
+            ID VARCHAR(255) NOT NULL,
+            SPEECH VARCHAR(255),
+            CUSTOMERSERVICE VARCHAR(255),
+            DETERMINE VARCHAR(255), 
+            DATETIME VARCHAR(255))"""
+cursor.execute(create)
+print ('表格sheet1创建成功!')
+# 创建插入SQL语句
+print ('插入数据到表格sheet1...')
+insert = """INSERT INTO sheet1 (ID,SPEECH, CUSTOMERSERVICE, DETERMINE, DATETIME) VALUES (?, ?, ?, ?, ?)"""
+
+# 创建一个for循环迭代读取xls文件每行数据的, 从第二行开始是要跳过标题
+for r in range(1, sheet.nrows):
+      ID =sheet.cell(r,0).value
+      SPEECH =sheet.cell(r,1).value
+      CUSTOMERSERVICE =sheet.cell(r,2).value
+      DETERMINE =sheet.cell(r,3).value
+      DATETIME =sheet.cell(r,4).value
+      values = (ID,SPEECH, CUSTOMERSERVICE, DETERMINE, DATETIME)
+
+      # 执行sql语句
+      cursor.execute(insert,values)
+print ('插入数据成功!')
+columns = str(sheet.ncols)
+rows = str(sheet.nrows)
+print ("恭喜你,成功导入了",rows,"行",columns,"列数据到SQLSERVER!")
+query="""select DATETIME,SPEECH,CUSTOMERSERVICE,
+sum(case  when DETERMINE is not null then 1 end) as  '分配总量',
+sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全','双空错号','三天未通') then 1 end) as  '打通',
+sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全') then 1 end) as  '通话',
+
+CAST(CONVERT( DECIMAL(18,2),sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全','双空错号','三天未通') then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE is not null then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '打通率',
+CAST(CONVERT( DECIMAL(18,2),sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全') then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全','双空错号','三天未通') then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '通话率',
+ 
+ sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','家博会-来','家博会-扫码入场','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-现场取','补寄')then 1 end) as  '总来',
+ CAST(CONVERT( DECIMAL(18,2),sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','家博会-来','家博会-扫码入场','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-现场取','补寄') then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '总来率',
+ sum(case  when DETERMINE in('婚博会-营销不全','婚博会-不确定','婚博会-判断不清','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-不确定','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+ ) then 1 end) as  '总不确定',
+ CAST(CONVERT( DECIMAL(18,2),sum(case  when DETERMINE in('婚博会-营销不全','婚博会-不确定','婚博会-判断不清','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-不确定','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+  ) then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '总不确定率',
+
+
+ sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','家博会-来','家博会-扫码入场','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-现场取','婚博会-营销不全','婚博会-不确定','婚博会-判断不清','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-不确定','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全','补寄'
+) then 1 end) as  '总有效',
+ CAST(CONVERT( DECIMAL(18,2),sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','家博会-来','家博会-扫码入场','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-现场取','婚博会-营销不全','婚博会-不确定','婚博会-判断不清','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-不确定','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全','补寄'
+) then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '总有效率',
+ sum(case  when DETERMINE in('不来','下届联系') then 1 end) as  '不来+下届联系',
+ CAST(CONVERT( DECIMAL(18,2),sum(case  when DETERMINE in('不来','下届联系' ) then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '不来+下届联系率',
+
+ sum(case DETERMINE when '婚博会-来' then 1 end) as  '婚博会-来',
+ sum(case DETERMINE when '婚博会-不确定' then 1 end) as  '婚博会-不确定',
+  sum(case DETERMINE when '婚博会-判断不清' then 1 end) as  '婚博会-判断不清',
+   sum(case DETERMINE when '婚博会-扫码入场' then 1 end) as  '婚博会-扫码入场',
+    sum(case DETERMINE when '婚博会-已经有票' then 1 end) as  '婚博会-已经有票',
+    sum(case DETERMINE when '婚博会-营销不全' then 1 end) as  '婚博会-营销不全',
+	 sum(case DETERMINE when '珠宝展-来' then 1 end) as  '珠宝展-来',
+	 sum(case DETERMINE when '珠宝展-不确定' then 1 end) as  '珠宝展-不确定',
+	 sum(case DETERMINE when '珠宝展-现场取' then 1 end) as  '珠宝展-现场取',
+	 sum(case DETERMINE when '珠宝展-判断不清' then 1 end) as  '珠宝展-判断不清',
+	 sum(case DETERMINE when '珠宝展-营销不全' then 1 end) as  '珠宝展-营销不全',
+	 sum(case DETERMINE when '旅游展-来' then 1 end) as  '旅游展-来',
+	 sum(case DETERMINE when '旅游展-不确定' then 1 end) as  '旅游展-不确定',
+	 sum(case DETERMINE when '旅游展-现场取' then 1 end) as  '旅游展-现场取',
+	 sum(case DETERMINE when '旅游展-判断不清' then 1 end) as  '旅游展-判断不清',
+	 sum(case DETERMINE when '旅游展-营销不全' then 1 end) as  '旅游展-营销不全',
+	 sum(case DETERMINE when '家博会-来' then 1 end) as  '家博会-来',
+	 sum(case DETERMINE when '家博会-不确定' then 1 end) as  '家博会-不确定',
+	 sum(case DETERMINE when '家博会-判断不清' then 1 end) as  '家博会-判断不清',
+	 sum(case DETERMINE when '家博会-现场取' then 1 end) as  '家博会-现场取',
+	 sum(case DETERMINE when '家博会-扫码入场' then 1 end) as  '家博会-扫码入场',
+	  sum(case DETERMINE when '家博会-营销不全' then 1 end) as  '家博会-营销不全',
+	 sum(case DETERMINE when '快递前确认地址' then 1 end) as  '快递前确认地址',
+	 sum(case DETERMINE when '双空错号' then 1 end) as  '双空错号',
+	 sum(case DETERMINE when '不来' then 1 end) as  '不来',
+	 sum(case DETERMINE when '下届联系' then 1 end) as  '下届联系',
+	 sum(case DETERMINE when '下届无效' then 1 end) as  '下届无效',
+	 sum(case DETERMINE when '暂无需求' then 1 end) as  '暂无需求',
+	 sum(case DETERMINE when '筹备完毕' then 1 end) as  '筹备完毕',
+	 sum(case DETERMINE when '勿扰' then 1 end) as  '勿扰',
+	 sum(case DETERMINE when '小蜜蜂专业' then 1 end) as  '小蜜蜂专业',
+	 sum(case DETERMINE when '重复数据' then 1 end) as  '重复数据',
+	 sum(case DETERMINE when '删除数据' then 1 end) as  '删除数据',
+	 sum(case DETERMINE when '不打' then 1 end) as  '不打',
+	 sum(case DETERMINE when '异地索票' then 1 end) as  '异地索票',
+	 sum(case DETERMINE when '三天未通' then 1 end) as  '三天未通',
+	 sum(case DETERMINE when '补寄' then 1 end) as  '补寄',
+	 sum(case DETERMINE when '未通' then 1 end) as  '未通',
+	 sum(case DETERMINE when '未打' then 1 end) as  '未打',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '婚博会-来' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '婚博会-来率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '婚博会-不确定' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '婚博会-不确定率',
+
+
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '婚博会-判断不清' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '婚博会-判断不清率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '婚博会-扫码入场' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '婚博会-扫码入场率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '婚博会-已经有票' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '婚博会-已经有票率',
+CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '婚博会-营销不全' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '婚博会-营销不全率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '珠宝展-来' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '珠宝展-来率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '珠宝展-不确定' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '珠宝展-不确定率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '珠宝展-现场取' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '珠宝展-现场取率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '珠宝展-判断不清' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '珠宝展-判断不清率',
+
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '珠宝展-营销不全' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '珠宝展-营销不全率',
+
+
+
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '旅游展-来' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '旅游展-来率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '旅游展-不确定' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '旅游展-不确定率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '旅游展-现场取' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '旅游展-现场取率',
+CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '旅游展-判断不清' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '旅游展-判断不清率',
+
+CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '旅游展-营销不全' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '旅游展-营销不全率',
+
+
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '家博会-来' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '家博会-来率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '家博会-不确定' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '家博会-不确定率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '家博会-判断不清' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '家博会-判断不清率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '家博会-现场取' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '家博会-现场取率',
+CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '家博会-扫码入场' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '家博会-扫码入场率',
+
+
+
+
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '家博会-营销不全' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '家博会-营销不全率',
+
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '快递前确认地址' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '快递前确认地址率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '双空错号' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '双空错号率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '不来' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '不来率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '下届联系' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '下届联系率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '下届无效' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '下届无效率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '暂无需求' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '暂无需求率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '筹备完毕' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '筹备完毕率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '勿扰' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '勿扰率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '小蜜蜂专业' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '小蜜蜂专业率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '重复数据' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '重复数据率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '删除数据' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '删除数据率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '不打' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE is not null then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '不打率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '异地索票' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE is not null then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '异地索票率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '三天未通' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全','双空错号','三天未通'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '三天未通率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '补寄' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE in('婚博会-扫码入场','婚博会-来','婚博会-营销不全','婚博会-不确定','下届无效','暂无需求','下届联系','不来','补寄','婚博会-判断不清','勿扰','筹备完毕','家博会-来','家博会-扫码入场','家博会-营销不全','家博会-不确定','家博会-判断不清','珠宝展-来','旅游展-来','旅游展-现场取','珠宝展-不确定','珠宝展-现场取','珠宝展-判断不清','旅游展-营销不全','珠宝展-营销不全'
+) then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '补寄率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '未通' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE is not null then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '未通率',
+ CAST(CONVERT( DECIMAL(18,2),sum(case DETERMINE when '未打' then 1 end)/CAST(ISNULL(NULLIF(sum(case  when DETERMINE is not null then 1 end),0),1) AS FLOAT)*100)AS VARCHAR(10))+'%' AS '未打率'
+
+
+from sheet1 
+
+group by  DATETIME,SPEECH,CUSTOMERSERVICE"""
+cursor.execute(query)
+#来重置游标的位置
+sheet_name = '二遍电话统计'
+#filename = 'report_' + time.strftime("%Y-%m-%d") + '.xls'
+out_path = 'E:\\电话统计\\二遍\\结果\\'+ time.strftime("%Y-%m-%d") + '二遍电话统计.xls'
+#搜取所有结果
+results = cursor.fetchall()
+# 获取MYSQL里面的数据字段名称
+fields = cursor.description
+workbook = xlwt.Workbook(encoding = 'utf-8') # workbook是sheet赖以生存的载体。
+sheet = workbook.add_sheet(sheet_name,cell_overwrite_ok=True)
+# 写上字段信息
+for field in range(0,len(fields)):
+        sheet.write(0,field,fields[field][0])
+        # 获取并写入数据段信息
+        row = 1
+        col = 0
+        for row in range(1,len(results)+1):
+            for col in range(0,len(fields)):
+                sheet.write(row,col,u'%s'%results[row-1][col])
+        workbook.save(out_path)
+# 关闭游标
+cursor.close()
+# 提交
+database.commit()
+# 关闭数据库连接
+database.close()
+print ("温馨提示:二遍电话统计结果保存路径为:E:\\电话统计\\二遍\\结果\\...")
+end_time = datetime.datetime.now()
+print(u'本次程序从开始到结束共运行' + str((end_time - start_time).seconds) + u'秒!')
+# 打印结果
+time.sleep(10)
