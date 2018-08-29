@@ -1,0 +1,513 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Dec  4 15:50:19 2017
+
+@author: ymy
+"""
+
+import File_Nominal_Read
+import Nominal_Normal
+import File_Nominal_Save
+import Nominal_Freedom
+import time
+
+
+def Main():
+    Data_original = File_Nominal_Read.File_Read().Original_Read()
+    Data_priority = File_Nominal_Read.File_Read().Priority_Normal_Read()
+    Data_freedom = File_Nominal_Read.File_Read().Priority_Freedom_Read()
+    print(u'正在进行一遍新网索分型...')
+    #数据必须包含"身份等级","本届索票信息","一次电话内容"字段
+    Data_original[u'一次电话内容'] = Nominal_Normal.Nominal_Summary(Data_priority).Summary_Deal(Data_original)
+    print(u'新网索分型完成!')
+    
+    print(u'正在进行一遍回归分型...')
+    #必须包含个性化表中所有使用的字段
+    Data_original[u'一次电话内容'] = Nominal_Freedom.Nominal_Freedom(Data_original,Data_freedom)
+    print(u'回归分型完成!')
+    
+    print(u'分型结果保存中...')
+    print(u'分型结果保存完成!')
+    print(u'******谢谢使用武汉数据部-一遍分型工具******')
+    File_Nominal_Save.File_Save(Data_original).Result_save()
+    time.sleep(10)
+    
+
+if __name__ == '__main__':
+    Main()
+
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Oct 15 22:11:03 2017
+
+@author: cwl
+"""
+
+
+import os
+import time
+import pandas as pd
+#import re
+#import datetime
+
+class File_Read(object):
+    """文件读取"""
+    def __init__(self):
+        
+        Dir = os.getcwd()
+        Name_original = os.listdir(Dir + os.sep + u'数据源')[0]
+        Name_priority = os.listdir(Dir + os.sep + u'定类优先级')[0]
+        
+        self.Dir_original = Dir + os.sep + u'数据源' + os.sep + Name_original
+        self.Dir_priority = Dir + os.sep + u'定类优先级' + os.sep + Name_priority
+    
+    def Original_Read(self):
+        ##读取数据源##
+        try:
+            print(u'******欢迎使用武汉数据部-一遍分型工具******')
+            print(u'正在读取数据源...')
+            Data_original = pd.read_excel(self.Dir_original,
+                                          sheetname = 0,
+                                          keep_default_na = False,
+                                          converters = {u'新郎身份证号':str,u'新娘身份证号':str,
+                                                        #u'婚礼日期':str,
+                                                        u'生日':str,u'预产期':str,
+                                                        u'装修时间':str,u'一次快递单号':str,
+                                                        u'一次快递时间':str,u'一次快递签收时间':str,
+                                                        u'一胎生日':str,
+                                                        u'二胎生日':str,
+                                                        u'三胎生日':str,
+                                                        
+                                                        })
+            #初步筛选
+            #Data_original = Data_original[(Data_original[u'是否黑名单'] != u'是') & \
+            #                               (Data_original[u'是否异常'] != u'是')]
+            
+            print(u'数据源读取完成!')
+        except:
+            print(u'数据源读取失败,10秒后退出!')
+            time.sleep(10)
+            exit()
+
+        return(Data_original)
+    
+    def Priority_Normal_Read(self):
+        ##读取数据源##
+        try:
+            print(u'正在读取分型优先级...')
+            Data_priority = pd.read_excel(self.Dir_priority,
+                                          sheetname = 0,
+                                          )
+
+            Data_priority[u'展会类型'] = Data_priority[u'展会类型'].fillna(method = 'ffill')
+            Data_priority[u'展会'] = Data_priority[u'展会'].fillna(method = 'ffill')
+            
+            print(u'分型优先级读取完毕!')
+        except:
+            print(u'分型优先级读取失败,10秒后退出!')
+            time.sleep(10)
+            exit()
+
+        return(Data_priority) 
+    
+    def Priority_Freedom_Read(self):
+        ##读取数据源##
+        try:
+            print(u'正在读取个性化需求分型表...')
+            Data_freedom = pd.read_excel(self.Dir_priority,
+                                          sheetname = 1,
+                                          )
+            
+            Data_freedom[u'序号'] = Data_freedom[u'序号'].fillna(method = 'ffill')
+            Data_freedom = Data_freedom.fillna('')
+            
+            print(u'个性化需求分型表读取完毕!')
+        except:
+            print(u'个性化需求分型表读取失败,10秒后退出!')
+            #time.sleep(10)
+            exit()
+
+        return(Data_freedom) 
+
+#File_Read().Priority_Freedom_Read()
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Oct 15 22:20:42 2017
+
+@author: cwl
+"""
+
+import os
+import time
+
+class File_Save(object):
+    """文件存储"""
+    def __init__(self,Data_result):
+        Dir = os.getcwd()
+        self.Dir_result = Dir + os.sep + u'结果'
+        
+        self.Data_result = Data_result
+    
+    def Summary_Deal(self):
+        ##汇总
+        self.Critical_save()
+        self.Result_save()
+    
+    def Critical_save(self):
+        ##保存文件路径判定##
+        if os.path.exists(self.Dir_result):
+            
+            pass
+        else:
+            os.mkdir(self.Dir_result)
+                  
+    def Result_save(self):
+        ##保存一遍数据源##
+        Dir_resultdistribution = self.Dir_result + os.sep + \
+                                      u'12届婚+家总表-' + \
+                                      time.strftime('%Y%m%d_%H%M',time.localtime()) + \
+                                      '.xlsx'
+
+        try:
+            #print(u'分型结果正在保存....')
+            self.Data_result.to_excel(Dir_resultdistribution,
+                                      encoding = 'gb18030',
+                                      index = False)
+            #print(u'分型结果保存完毕')
+        except:
+            print(u'分型结果保存失败,10秒后退出!')
+            time.sleep(10)
+            exit()
+
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Dec  1 11:19:34 2017
+
+@author: cwl
+"""
+
+#import pandas as pd
+#Data_original = pd.read_excel(u'e:\\data\\1.xlsx',sheetname = 0,keep_default_na = False)
+
+#Data_freedom = pd.read_excel(u'e:\\data\\杂\\27届定类.xlsx',sheetname = 1,converters = {u'序号':str})
+#Data_freedom[u'序号'] = Data_freedom[u'序号'].fillna(method = 'ffill')
+#Data_freedom = Data_freedom.fillna('')
+
+#item = 11
+#Index_data = Data_freedom[Data_freedom[u'序号'] == item].index
+#Data = Data_freedom.loc[Index_data]
+#Data_condition = Data.loc[Data.index[0]]
+
+class Index_Deal(object):
+    def __init__(self,Data):
+        self.Data = Data
+    
+    def Condition_Summary(self):
+        Conditions = []
+        for condition in self.Data.index:
+            Data_condition = self.Data.loc[condition]
+            Conditions.append(self.Condition_Deal(Data_condition ))
+    
+        if len(Conditions) != 1:
+            Result_conditions = ' & '.join(Conditions)
+        else:
+            Result_conditions = Conditions[0]
+        
+        return(Result_conditions)
+
+    def Condition_Deal(self,Data_condition):
+        ##个性化筛选,不同要求对应不同条编码##
+        Columns_condition = u'(Data_original["' + Data_condition[u'字段'] + '"]'
+        if Data_condition[u'开头是|开头不是|结尾是|结尾不是|大于|大于或等于|小于|小于或等于|包含|不包含|等于|不等于'] == u'开头是':
+            Condition = Columns_condition + u'.str.startswith("' + Data_condition[u'关键字'] + '"))'
+        elif Data_condition[u'开头是|开头不是|结尾是|结尾不是|大于|大于或等于|小于|小于或等于|包含|不包含|等于|不等于'] == u'开头不是':
+            Condition = u'~' + Columns_condition + u'.str.startswith("' + Data_condition[u'关键字'] + '"))'
+        elif Data_condition[u'开头是|开头不是|结尾是|结尾不是|大于|大于或等于|小于|小于或等于|包含|不包含|等于|不等于'] == u'结尾是':
+            Condition = Columns_condition + u'.str.endswith("' + Data_condition[u'关键字'] + '"))'
+        elif Data_condition[u'开头是|开头不是|结尾是|结尾不是|大于|大于或等于|小于|小于或等于|包含|不包含|等于|不等于'] == u'结尾不是':
+            Condition = u'~' + Columns_condition + u'.str.endswith("' + Data_condition[u'关键字'] + '"))' 
+        elif Data_condition[u'开头是|开头不是|结尾是|结尾不是|大于|大于或等于|小于|小于或等于|包含|不包含|等于|不等于'] == u'大于':
+            Condition = Columns_condition + u'>"' + Data_condition[u'关键字'] + '")'
+        elif Data_condition[u'开头是|开头不是|结尾是|结尾不是|大于|大于或等于|小于|小于或等于|包含|不包含|等于|不等于'] == u'大于或等于':
+            Condition = Columns_condition + u'>="' + Data_condition[u'关键字'] + '")'
+        elif Data_condition[u'开头是|开头不是|结尾是|结尾不是|大于|大于或等于|小于|小于或等于|包含|不包含|等于|不等于'] == u'小于':
+            Condition = Columns_condition + u'<"' + Data_condition[u'关键字'] + '")'
+        elif Data_condition[u'开头是|开头不是|结尾是|结尾不是|大于|大于或等于|小于|小于或等于|包含|不包含|等于|不等于'] == u'小于或等于':
+            Condition = Columns_condition + u'<="' + Data_condition[u'关键字'] + '")' 
+        elif Data_condition[u'开头是|开头不是|结尾是|结尾不是|大于|大于或等于|小于|小于或等于|包含|不包含|等于|不等于'] == u'包含':
+            Condition = Columns_condition + u'.str.contains("' + Data_condition[u'关键字'] + '"))'
+        elif Data_condition[u'开头是|开头不是|结尾是|结尾不是|大于|大于或等于|小于|小于或等于|包含|不包含|等于|不等于'] == u'不包含':
+            Condition = u'~' + Columns_condition + u'.str.contains("' + Data_condition[u'关键字'] + '"))'
+        elif Data_condition[u'开头是|开头不是|结尾是|结尾不是|大于|大于或等于|小于|小于或等于|包含|不包含|等于|不等于'] == u'等于':
+            Condition = Columns_condition + u'=="' + Data_condition[u'关键字'] + '")'
+        elif Data_condition[u'开头是|开头不是|结尾是|结尾不是|大于|大于或等于|小于|小于或等于|包含|不包含|等于|不等于'] == u'不等于':
+            Condition = Columns_condition + u'!="' + Data_condition[u'关键字'] + '")'  
+        else:
+            Condition = Columns_condition + ')' + '!=' + Columns_condition + ')'
+    
+        return(Condition)
+
+
+
+#Data_operation = Data.loc[Data.index[0]]
+
+class Typeticket_Deal(object):
+    """个性化操作"""
+    def __init__(self,Data_original,Data,Index_need):
+        
+        self.Data_original = Data_original
+        self.Data_operation = Data.loc[Data.index[0]]
+        self.Index_need = Index_need
+    
+    def Operation_Summary(self):
+        
+        Type_ticket = self.Operation_Deal(self.Data_original,self.Data_operation,self.Index_need)
+    
+        return(Type_ticket)
+    
+    def Operation_Deal(self,Data_original,Data_operation,Index_need):
+        ##一次电话内容个性化操作##
+        Column_operation = u'一次电话内容'
+        
+        if Data_operation[u'模糊替换|精确替换|暴力替换|前面增加|后面增加'] == u'模糊替换':
+            Data_original.loc[Index_need,[Column_operation]] = Data_original.loc[Index_need,[Column_operation]].replace(Data_operation[u'关键字1'],Data_operation[u'关键字2'],regex = True)
+        elif Data_operation[u'模糊替换|精确替换|暴力替换|前面增加|后面增加'] == u'精确替换':
+            Data_original.loc[Index_need,[Column_operation]] = Data_original.loc[Index_need,[Column_operation]].replace(Data_operation[u'关键字1'],Data_operation[u'关键字2'])
+        elif Data_operation[u'模糊替换|精确替换|暴力替换|前面增加|后面增加'] == u'暴力替换':
+            Data_original.loc[Index_need,[Column_operation]] = Data_operation[u'关键字1']
+        elif Data_operation[u'模糊替换|精确替换|暴力替换|前面增加|后面增加'] == u'前面增加':
+            Data_original.loc[Index_need,[Column_operation]] = Data_operation[u'关键字1'] + Data_original.loc[Index_need,[Column_operation]]
+        elif Data_operation[u'模糊替换|精确替换|暴力替换|前面增加|后面增加'] == u'后面增加':
+            Data_original.loc[Index_need,[Column_operation]] = Data_original.loc[Index_need,[Column_operation]] + Data_operation[u'关键字1']
+        else:
+            pass
+        
+        Type_ticket = Data_original[Column_operation].values
+        
+        return(Type_ticket)
+
+
+def Nominal_Freedom(Data_original,Data_freedom):
+    
+    Levels_freedom = Data_freedom[u'序号'].drop_duplicates()
+    for freedom in Levels_freedom:
+        try:
+            Index_data = Data_freedom[Data_freedom[u'序号'] == freedom].index
+            Data = Data_freedom.loc[Index_data]
+            Index_need = Data_original[eval(Index_Deal(Data).Condition_Summary())].index
+            Data_original.loc[:,[u'一次电话内容']] = Typeticket_Deal(Data_original,Data,Index_need).Operation_Summary()
+        except:
+            print(u'个性化操作序号:' + str(freedom) + u'出错')
+            
+    return(Data_original[u'一次电话内容'].values)
+
+#Data_original = pd.read_excel(u'e:\\data\\杂\\定类-个性化测试1.xlsx',sheetname = 0,keep_default_na = False)
+#Type_ticket = Nominal_Freedom(Data_original,Data_freedom)
+#Data_original.loc[:,[u'一次电话内容']] = Type_ticket
+#Data_original.to_excel(u'e:\\data\\2.xlsx',encoding = 'gb18030',index = False)
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Oct 24 17:16:14 2017
+
+@author: cwl
+"""
+
+#import pandas as pd
+
+#Data_original = pd.read_excel(u'e:\\data\\杂\\20171201一遍数据源1830.xlsx',
+#                              sheetname = 0,
+#                           keep_default_na = False)
+
+#Data_priority = pd.read_excel(u'E:\\python\\Distribution_OriginalDeal\\Distribution_OriginalDeal-5.9\\定类优先级\\27届定类1.xlsx',
+ #                             sheetname = 0)
+#Data_priority[u'展会类型'] = Data_priority[u'展会类型'].fillna(method = 'ffill')
+#Data_priority[u'展会'] = Data_priority[u'展会'].fillna(method = 'ffill')
+
+#Data = Data_original.iloc[1]
+
+##输入定类表和数据源
+##数据源包括"本届索票信息","一次电话内容","展会类型","身份等级"
+
+#Data_aim = Data_original.loc[Index_part1 + Index_part2]
+
+class Nominal_New(object):
+    """定类-新会员"""
+    def __init__(self,Data_priority):
+        self.Data_priority = Data_priority
+    
+    def Summary_Deal(self,Data):
+        ##汇总##
+        Type_ticket = Data[u'本届索票信息'].split('+')
+        if len(Type_ticket) == 1:
+            Nominal = self.Nominal_One(Type_ticket,self.Data_priority)
+        elif len(Type_ticket) >= 2:
+            Nominal = self.Nominal_More(Type_ticket,self.Data_priority)
+        else:
+            Nominal = Type_ticket
+        
+        return(Nominal)
+        
+    def Nominal_One(self,Type_ticket,Data_priority):
+        ##定类-单次索票##
+        Priority = Data_priority[Data_priority[u'本届索票信息'] == Type_ticket[0]]
+        Nominal = Priority[u'类型'].values[0]
+        
+        return(Nominal)
+    
+    def Nominal_More(self,Type_ticket,Data_priority):
+        ##定类-多次索票##
+        
+        Index_priority = []
+        for item in Type_ticket:
+            Index_priority = Index_priority + Data_priority[Data_priority[u'本届索票信息'] == item].index.tolist()
+        
+        Index_min = min(Index_priority)
+        
+        #判定多重展
+        Index_removes = Data_priority[Data_priority[u'本届索票信息'].str.contains(u'.*?第2步没完成')].index.tolist()
+        Index_removes = Index_removes + Data_priority[Data_priority[u'本届索票信息'].str.contains(u'.*?第1步没完成')].index.tolist()
+        for Index_remove in Index_removes:
+            try:
+                Index_priority.remove(Index_remove)
+            except:
+                pass
+        
+        Exhibitions = Data_priority.loc[Index_priority,[u'展会类型']].drop_duplicates()
+        
+        if len(Exhibitions) >= 2:
+            Multiple = u''
+        else:
+            Multiple = u''
+
+        Nominal = Data_priority.loc[Index_min,[u'类型']].values[0] + Multiple
+
+        return(Nominal)
+
+#Nominal_New(Data_priority).Summary_Deal(Data)
+
+
+class Nominal_Comeback(object):
+    """定类-回归"""
+    def __init__(self,Data_priority):
+        self.Data_priority = Data_priority
+        
+    def Summary_Deal(self,Data):
+        ##汇总##
+        Index_priority,Exhibition_end = self.Exhibition_Deal(Data,self.Data_priority)
+        
+        #if (Exhibition_end == u'回归-珠宝展') or (Exhibition_end == u'回归-旅游展'):
+        #    Identity = ''
+        #else:
+        Identity = self.Identity_Deal(Data,self.Data_priority)
+        
+        Multiple = self.Exhibitions_Deal(Index_priority,self.Data_priority)
+    
+        Nominal = Exhibition_end + Identity + Multiple
+        
+        return(Nominal)
+    
+    def Exhibition_Deal(self,Data,Data_priority):
+        ##判定展会##
+        Type_ticket = Data[u'本届索票信息'].split('+')
+        Index_priority = []
+        for item in Type_ticket:
+            Index_priority = Index_priority + Data_priority[Data_priority[u'本届索票信息'] == item].index.tolist()
+        
+        Index_min = min(Index_priority)
+        Exhibition = Data_priority.loc[Index_min,[u'展会']].values[0]
+        
+        #儿博会展会类型非儿博会和母婴展，增加"-其他展"
+        #if (Exhibition == u'儿博会') and (Data[u'定类展会'] != u'儿博会') and (Data[u'定类展会'] != u'母婴展') and (Data[u'定类展会'] != ''):
+        #    Exhibition_end = Exhibition + u'-其他展-回归-'        
+        #珠宝展和旅游展需在回归后面加相应的珠宝展和旅游展
+        #elif (Exhibition == u'珠宝展') or ((Exhibition == u'旅游展')):
+        #    Exhibition_end = u'回归-' + Exhibition
+        #婚博会直接回归-
+        #elif Exhibition == u'婚博会':
+        #    Exhibition_end = u'回归-'
+        #只剩下家博会,-回归-给他
+        #else:
+        Exhibition_end = Exhibition + u'-回归-'
+        
+        return(Index_priority,Exhibition_end)
+        
+    def Identity_Deal(self,Data,Data_priority):
+        ##等级判断##
+        Dict_identity = {u'金卡':u'金卡',
+                         u'vip':u'VIP',
+                         u'老会员':u'老会员'}
+        
+        Identity = Dict_identity[Data[u'身份等级']]
+
+        return(Identity)
+    
+    def Exhibitions_Deal(self,Index_priority,Data_priority):
+        ##多重展判断##
+
+        Index_removes = Data_priority[Data_priority[u'本届索票信息'].str.contains(u'.*?第2步没完成')].index.tolist()
+        Index_removes = Index_removes + Data_priority[Data_priority[u'本届索票信息'].str.contains(u'.*?第1步没完成')].index.tolist()
+        for Index_remove in Index_removes:
+            try:
+                Index_priority.remove(Index_remove)
+            except:
+                pass
+        
+        Exhibitions = Data_priority.loc[Index_priority,[u'展会类型']].drop_duplicates()
+        if len(Exhibitions) >= 2:
+            Multiple = u''
+        else:
+            Multiple = ''        
+    
+        return(Multiple)
+        
+
+#Nominal_Comeback(Data_priority).Summary_Deal(Data)
+
+
+class Nominal_Summary(object):
+    """定类汇总"""
+    def __init__(self,Data_priority):
+        self.Data_priority = Data_priority
+    
+    def Summary_Deal(self,Data_original):
+        ##定类##
+        
+        
+        Columns_need = [u'身份等级',u'本届索票信息',u'一次电话内容']
+        Data_Nominal = Data_original[Columns_need].drop_duplicates()
+        Data_Nominal[u'一次电话内容'] = Data_Nominal.apply(self.Critical_Deal,axis = 1)
+        
+        for item in range(len(Data_Nominal)):
+            Item = Data_Nominal.iloc[item]
+            Index_nominal = Data_original[(Data_original[u'身份等级'] == Item[u'身份等级']) &\
+                                          (Data_original[u'本届索票信息'] == Item[u'本届索票信息'])].index.tolist()
+            
+            Data_original.loc[Index_nominal,[u'一次电话内容']] = Item[u'一次电话内容']
+        
+        Nominals = Data_original[u'一次电话内容'].values.tolist()
+        
+        return(Nominals)
+    
+    def Critical_Deal(self,Data):
+        
+        try:
+            if Data[u'身份等级'] == u'新会员':
+                Nominal = Nominal_New(self.Data_priority).Summary_Deal(Data)
+            else:
+                Nominal = Nominal_Comeback(self.Data_priority).Summary_Deal(Data)
+        except:
+            Nominal = Data[u'一次电话内容']
+        return(Nominal)
+
+#import datetime
+#Time_start = datetime.datetime.now()
+#Data_result = Nominal_Summary(Data_priority).Summary_Deal(Data_aim)
+#Data_aim[u'一次电话内容'] = Data_result
+#End_start = datetime.datetime.now()
+#print((End_start - Time_start).seconds)
+
+#Columns_need = [u'身份等级',u'本届索票信息',u'定类展会',u'一次电话内容']
+#Data_original.loc[Index_part1 + Index_part2,Columns_need].to_csv(u'e:\\data\\1.csv',encoding = 'gb18030',index = False)
+#Data_original.to_excel(u'e:\\data\\1.xlsx',encoding = 'gb18030',index = False)
+
+
