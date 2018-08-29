@@ -1,0 +1,464 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Jul 28 20:13:26 2017
+
+@author: cwl
+"""
+import os
+import pandas as pd
+import time
+import numpy as np
+import datetime
+
+# import warnings
+
+# warnings.simplefilter('ignore')
+
+Dir_file = u'e:\\电话分配\\二遍'
+
+
+class File_Read(object):
+    """文件读取"""
+
+    def __init__(self):
+        self.dir_original = Dir_file + os.sep + u'数据源' + os.sep + os.listdir(Dir_file + os.sep + u'数据源')[0]
+        self.dir_distribution = Dir_file + os.sep + u'分配表' + os.sep + os.listdir(Dir_file + os.sep + u'分配表')[0]
+
+    def Original_read(self):
+        ##读取数据源##
+        try:
+            print(u'正在读取数据源数据...')
+            data_original = pd.read_excel(self.dir_original,
+                                          sheetname=u'Sheet1',
+                                          keep_default_na=False,
+                                          converters={u'新郎身份证号': str,
+                                                      u'新娘身份证号': str,
+                                                      # u'婚礼日期':str,
+                                                      u'装修时间': str})
+            print(u'数据源读取完毕！')
+        except:
+            print(u'数据源读取失败，10秒后退出！')
+            time.sleep(10)
+            exit()
+
+        return (data_original)
+
+    def Distribution_read(self):
+        ##读取分配表##
+        try:
+            print(u'正在读取分配表数据...')
+            data_distribution = pd.read_excel(self.dir_distribution,
+                                              sheetname=u'Sheet1',
+                                              skiprows=1)
+            print(u'分配表读取完毕！')
+        except:
+            print(u'分配表读取失败，10秒后退出！')
+            time.sleep(10)
+            exit()
+
+        return (data_distribution)
+
+
+# data_original = File_Read().Original_read()
+# data_distribution = File_Read().Distribution_read()
+
+
+class Original_Deal(object):
+    """数据源处理"""
+
+    def __init__(self, data_original):
+        self.data_original = data_original
+
+    def Summary_deal(self):
+        ##汇总处理##
+        print(u'数据源正在处理...')
+
+        self.data_original = self.Sorting_deal()
+        self.data_original = self.Content_deal()
+
+        print(u'数据源处理完毕！')
+
+        return (self.data_original)
+
+    def Content_deal(self):
+        ##内容处理##
+        self.data_original.loc[:, [u'二次电话内容']] = self.data_original[u'二次电话内容']
+        self.data_original.loc[:, [u'二次电话负责人']] = ''
+        self.data_original.loc[:, [u'二次电话分配日期']] = time.strftime('%Y/%m/%d', time.localtime())
+        return (self.data_original)
+
+    def Sorting_deal(self):
+        ##婚礼日期和填写日期和二次电话分配日期排序##
+        try:
+            self.data_original = self.data_original.apply(self.Datetime_deal, axis=1)
+            self.data_original = self.data_original.sort_values([
+                # u'id_time0',u'id_time1',
+                u'填写日期',u'婚礼日期', u'分配天数', u'二次电话分配日期', u'二次电话内容'],
+                ascending=[True, True, True, True, True])
+
+            # del self.data_original[u'id_time0']
+            # del self.data_original[u'id_time1']
+            # del self.data_original[u'id_time2']
+        except:
+            print(u"数据源'婚礼日期'和'填写日期'和'二次电话分配日期'处理出错！")
+            print(u"此处忽略日期处理,继续分配...")
+            # time.sleep(10)
+            # exit()
+        return (self.data_original)
+
+    def Datetime_deal(self, data):
+        ##日期格式处理##
+        # try:
+        #   if str(type(data[u'婚礼日期'])) != "<type 'unicode'>":
+        #      data['id_time0'] = data[u'婚礼日期']
+        #  else:
+        #       data['id_time0'] = ''
+        # except:
+        #    data['id_time0'] = ''
+
+        # try:
+        #    if str(type(data[u'填写日期'])) != "<type 'unicode'>":
+        #        data['id_time1'] = data[u'填写日期']
+        #    else:
+        #        data['id_time1'] = ''
+        # except:
+        #    data['id_time1'] = ''
+
+        # try:
+        #    if str(type(data[u'二次电话分配日期'])) != "<type 'unicode'>":
+        #        data['id_time2'] = data[u'二次电话分配日期']
+        #    else:
+        #        data['id_time2'] = ''
+        # except:
+        #    data['id_time2'] = ''
+
+        try:
+            data[u'婚礼日期'] = data[u'婚礼日期'].strftime('%Y-%m-%d')
+        except:
+            pass
+
+        return (data)
+
+
+# data_original = Original_Deal(data_original).Summary_deal()
+
+class Require_Deal(object):
+    """分配表处理"""
+
+    def __init__(self, data_distribution):
+        self.data_distribution = data_distribution
+
+    def Summary_deal(self):
+        ##处理汇总##
+        print(u'分配表正在处理...')
+
+        self.data_distribution = self.Content_deal()
+        self.data_distribution = self.Columns_deal()
+        self.data_distribution = self.Dimensional_deal()
+        self.data_distribution = self.data_distribution[self.data_distribution[u'分配数量'] != '']
+
+        print(u'分配表处理完毕！')
+
+        return (self.data_distribution)
+
+    def Content_deal(self):
+        ##填充分配表##
+        self.data_distribution.loc[:, [u'类型']] = self.data_distribution[u'类型'].fillna(method='ffill')
+        self.data_distribution.loc[:, [u'姓名']] = self.data_distribution[u'姓名'].fillna(method='ffill')
+        self.data_distribution = self.data_distribution.fillna('')
+
+        return (self.data_distribution)
+
+    def Columns_deal(self):
+        ##分配表字段选取##
+        columns_all = self.data_distribution.columns.tolist()
+        columns_end = columns_all.index(u'合计')
+        columns_need = columns_all[0:columns_end] + [u'姓名']
+        self.data_distribution = self.data_distribution[columns_need]
+
+        return (self.data_distribution)
+
+    def Dimensional_deal(self):
+        self.data_distribution = self.data_distribution.melt(id_vars=[u'类型', u'姓名'],
+                                                             var_name=u'分配天数',
+                                                             value_name=u'分配数量')
+
+        return (self.data_distribution)
+
+
+# data_distribution = Require_Deal(data_distribution).Summary_deal()
+
+
+class Groupby_Deal(object):
+    """分类汇总"""
+
+    def Groupby_OriginalDeal(self, data_original):
+        Groupby_Original = data_original[[u'二次电话内容', u'分配天数']].groupby([u'二次电话内容', u'分配天数']).agg(len)
+
+        return (Groupby_Original)
+
+    def Groupby_RequireDeal(self, data_distribution):
+        Groupby_RequireSeries = data_distribution[[u'类型', u'分配天数', u'分配数量']].groupby([u'类型', u'分配天数']).agg(np.sum)
+        Groupby_Require = {u'类型': Groupby_RequireSeries.index.tolist(),
+                           u'分配数量': Groupby_RequireSeries.values.tolist()}
+        Groupby_Require = pd.DataFrame(Groupby_Require)
+
+        return (Groupby_Require)
+
+
+# Groupby_Original = Groupby_Deal().Groupby_OriginalDeal(data_original)
+# Groupby_Require = Groupby_Deal().Groupby_RequireDeal(data_distribution)
+
+
+
+class Distribution_Deal(object):
+    """分配处理"""
+
+    def __init__(self, data_original, data_distribution, Groupby_Original, Groupby_Require):
+        self.data_original = data_original
+        self.data_distribution = data_distribution
+        self.Groupby_Original = Groupby_Original
+        self.Groupby_Require = Groupby_Require
+        self.Index_distribution = []
+        self.Names_distribution = []
+
+    def Critical_deal(self, data):
+        ##判定是否分配##
+        try:
+            self.Num_limit = self.Groupby_Original.loc[(data[u'类型'][0], int(data[u'类型'][1]))]
+            self.Num_requests = int(data[u'分配数量'][0])
+
+            if self.Num_requests <= self.Num_limit:
+                Critical_result = True
+            else:
+                Critical_result = str(data[u'类型'][0]) + \
+                                  u'\n分配天数:' + str(int(data[u'类型'][1])) + \
+                                  u'\n原始数据数量为:' + str(self.Num_limit) + \
+                                  u'\n要求分配数量为:' + str(self.Num_requests) + \
+                                  u'\n上述二次电话内容数量不足,请检查数量！'
+        except:
+            Critical_result = str(data[u'类型'][0]) + \
+                              u'\n分配天数:' + str(int(data[u'类型'][1])) + \
+                              u'\n上述二次电话内容不存在,请检查二次电话内容！'
+
+        return (Critical_result)
+
+    def Names_deal(self, data):
+        ##电话负责人处理##
+        Data_partdistribution = self.data_distribution[(self.data_distribution[u'类型'] == data[u'类型'][0]) &
+                                                       (self.data_distribution[u'分配天数'] == int(data[u'类型'][1]))] \
+            [[u'姓名', u'分配数量']]
+
+        Names_dict = {}
+        Names_list = []
+        Names_id = []
+
+        for item in range(len(Data_partdistribution)):
+            Name_partdistribution = Data_partdistribution.iloc[item]
+            Names_list = Names_list + [Name_partdistribution[u'姓名']] * int(Name_partdistribution[u'分配数量'])
+            Names_id = Names_id + list(range(int(Name_partdistribution[u'分配数量'])))
+
+        Names_dict[u'姓名'] = Names_list
+        Names_dict[u'辅助id'] = Names_id
+        Names_DataFrame = pd.DataFrame(Names_dict).sort_values([u'辅助id'])
+        Names_result = Names_DataFrame[u'姓名'].values.tolist()
+        Names_result = Names_result + [''] * int(self.Num_limit - self.Num_requests)
+
+        return (Names_result)
+
+    def Distribution_deal(self):
+        ##电话负责人分配##
+        print(u'二次电话负责人正在匹配中...')
+        for item in range(len(self.Groupby_Require)):
+            data = self.Groupby_Require.iloc[item]
+            Critical_result = self.Critical_deal(data)
+
+            if Critical_result == True:
+                Names_result = self.Names_deal(data)
+                Index_partdistribution = self.data_original[(self.data_original[u'二次电话内容'] == data[u'类型'][0]) &
+                                                            (self.data_original[u'分配天数'] == data[u'类型'][1])].index
+
+                self.Index_distribution = self.Index_distribution + list(Index_partdistribution)
+                self.Names_distribution = self.Names_distribution + Names_result
+
+
+                # Data_partdistribution.loc[:,[u'二次电话负责人']] = Names_result
+                # if str('Result_partdistribution' in locals().keys()) == 'False':
+                #      Result_partdistribution = Data_partoriginal
+                # else:
+                #     Result_partdistribution = Result_partdistribution.append(Data_partoriginal)
+
+                # self.data_original = self.data_original.drop(list(Data_partdistribution.index))
+                # self.data_original = self.data_original.append(Data_partdistribution)
+
+            else:
+                print(Critical_result)
+
+        if len(self.Index_distribution) != 0:
+            self.data_original.loc[self.Index_distribution, [u'二次电话负责人']] = self.Names_distribution
+        else:
+            pass
+
+        Result_distribution = self.data_original[self.data_original[u'二次电话负责人'] != '']
+        Remaining_original = self.data_original[self.data_original[u'二次电话负责人'] == '']
+        print(u'二次电话负责人匹配完毕！')
+
+        return (Result_distribution, Remaining_original)
+
+
+# data = Groupby_Require.iloc[1]
+# Num_limit = Groupby_Original.loc[(data[u'类型'][0],int(data[u'类型'][1]))]
+# Num_requests = int(data[u'分配数量'][0])
+# Distribution_Deal(data_original,data_distribution,Groupby_Original,Groupby_Require).Names_deal(data)
+# Data_partdistribution = data_original[(data_original[u'二次电话内容'] == data[u'类型'][0]) &
+#                                                               (data_original[u'分配天数'] == data[u'类型'][1])]
+
+# Result_distribution,Remaining_original = Distribution_Deal(data_original,data_distribution,
+#                                                           Groupby_Original,Groupby_Require). \
+#                                                           Distribution_deal()
+
+
+class Files_save(object):
+    """文件存储"""
+
+    def __init__(self, Result_distribution, Remaining_original):
+        self.Dir_result = Dir_file + os.sep + u'分配结果'
+        self.Result_distribution = Result_distribution
+        self.Remaining_original = Remaining_original
+
+    def Summary_save(self):
+        ##保存汇总##
+        self.Critical_save()
+        self.Report_save()
+        self.Result_save()
+        self.Remaining_save()
+
+    def Critical_save(self):
+        ##保存文件路径判定##
+        if os.path.exists(self.Dir_result):
+            pass
+        else:
+            os.mkdir(self.Dir_result)
+
+    def Report_save(self):
+        ##数据保存报告##
+        print(u'本次分配数量:' + str(len(self.Result_distribution)) + u'行')
+        print(u'本次剩余数量:' + str(len(self.Remaining_original)) + u'行')
+
+    def Result_save(self):
+        ##保存分配数据##
+        Dir_resultdistribution = self.Dir_result + os.sep + \
+                                 time.strftime('%Y%m%d', time.localtime()) + \
+                                 u'二遍分配数据' + \
+                                 time.strftime('%H%M', time.localtime()) + \
+                                 '.xlsx'
+
+        try:
+            print(u'二遍分配数据正在保存中...')
+
+            self.Result_distribution.to_excel(Dir_resultdistribution,
+                                              encoding='gb18030',
+                                              index=False)
+
+            print(u'二遍分配数据保存完毕！')
+        except:
+            print(u'二遍数据保存失败,10秒后退出！')
+            time.sleep(10)
+            exit()
+
+    def Remaining_save(self):
+        ##保存剩余数据##
+        Dir_remaining = self.Dir_result + os.sep + \
+                        time.strftime('%Y%m%d', time.localtime()) + \
+                        u'二遍剩余数据' + \
+                        time.strftime('%H%M', time.localtime()) + \
+                        u'.xlsx'
+
+        try:
+            print(u'二遍剩余数据正在保存中...')
+
+            self.Remaining_original.to_excel(Dir_remaining,
+                                             encoding='gb18030',
+                                             index=False)
+
+            print(u'二遍剩余数据保存完毕！')
+        except:
+            print(u'二遍剩余数据保存失败,10秒后退出！')
+            time.sleep(10)
+            exit()
+
+
+# data_original = File_Read().Original_read()
+# data_distribution = File_Read().Distribution_read()
+# data_original = Original_Deal(data_original).Summary_deal()
+# data_distribution = Require_Deal(data_distribution).Summary_deal()
+# Groupby_Original = Groupby_Deal().Groupby_OriginalDeal(data_original)
+# Groupby_Require = Groupby_Deal().Groupby_RequireDeal(data_distribution)
+# Result_distribution,Remaining_original = Distribution_Deal(data_original,data_distribution,
+#                                                           Groupby_Original,Groupby_Require). \
+#                                                           Distribution_deal()
+
+# Files_save(Result_distribution,Remaining_original).Summary_save()
+
+class Main(object):
+    """汇总"""
+
+    def __init__(self):
+        self.data_original = File_Read().Original_read()
+        self.data_distribution = File_Read().Distribution_read()
+        self.data_original = Original_Deal(self.data_original).Summary_deal()
+        self.data_distribution = Require_Deal(self.data_distribution).Summary_deal()
+        self.Groupby_Original = Groupby_Deal().Groupby_OriginalDeal(self.data_original)
+        self.Groupby_Require = Groupby_Deal().Groupby_RequireDeal(self.data_distribution)
+
+    def Summary_main(self):
+        ##分配保存##
+        Result_distribution, Remaining_original = Distribution_Deal(self.data_original, self.data_distribution,
+                                                                    self.Groupby_Original, self.Groupby_Require). \
+            Distribution_deal()
+
+        Files_save(Result_distribution, Remaining_original).Summary_save()
+
+
+if __name__ == '__main__':
+    start_time = datetime.datetime.now()
+    Main().Summary_main()
+    end_time = datetime.datetime.now()
+    print(u'共消耗' + str((end_time - start_time).seconds) + u'秒')
+    # print(u'分配已完成,两分钟后自动退出....')
+    # time.sleep(120)
+
+
+
+# start_time = datetime.datetime.now()
+# Main().Summary_main()
+# end_time = datetime.datetime.now()
+# print((end_time - start_time).seconds)
+
+# 多线程
+# import threading
+# start_time = datetime.datetime.now()
+# t = threading.Thread(target=Main().Summary_main())
+# t.start()
+# t.join()
+# end_time = datetime.datetime.now()
+# print((end_time - start_time).seconds)
+
+# 多进程
+# import multiprocessing
+# start_time = datetime.datetime.now()
+# p = multiprocessing.Process(target = Main().Summary_main())
+# p.start()
+# p.join()
+# end_time = datetime.datetime.now()
+# print((end_time - start_time).seconds)
+
+# start_time = datetime.datetime.now()
+# pool = multiprocessing.Pool(processes = 8)
+# pool.apply_async(Main().Summary_main())
+# pool.close()
+# pool.join()
+# end_time = datetime.datetime.now()
+# print((end_time - start_time).seconds)
+# multiprocessing.freeze_support()
+
