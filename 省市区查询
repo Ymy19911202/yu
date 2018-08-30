@@ -1,6 +1,8 @@
 #-*- coding:utf-8 -*-
 '''
 利用高德地图api实现地址省市区归属查询
+作者:于明义
+时间:2018/8/29
 '''
 import requests
 import pandas as pd
