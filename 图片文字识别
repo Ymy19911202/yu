@@ -1,0 +1,30 @@
+from aip import AipOcr
+import xlwt
+#引入文字识别OCR SDK
+APP_ID='11745819'
+API_KEY='kyEtte9oYxwQrEb5FQQLfSgk'
+SECRET_KEY='5MjruwhzK6ZfVr813yDOTFLBeKTxswU5'
+#定义常量
+def get_file_content(filePath):
+    with open(filePath,'rb') as fp:
+        return fp.read()
+aipOcr=AipOcr(APP_ID,API_KEY,SECRET_KEY)
+result=aipOcr.basicGeneral(get_file_content('7.jpeg'))
+listdicts=result['words_result']
+'''
+print(listdicts)
+listdict=listdicts[0]['words']
+print(listdict)
+'''
+listwords=[]
+for i in range(len(listdicts)):
+    listwords.append(listdicts[i]['words'])
+    print(listwords)
+
+f=xlwt.Workbook()
+sheet1 = f.add_sheet(u'sheet1',cell_overwrite_ok=True) #创建sheet
+for j in range(len(listwords)):
+    sheet1.write(0,j)
+f.save('text.xls')#保存文件
+
+
